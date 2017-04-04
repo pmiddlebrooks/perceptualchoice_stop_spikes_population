@@ -52,6 +52,8 @@ if nargin < 2
     Opt.hemisphereList 	= [];
     
     Opt.doStops       	= true;
+    Opt.multiUnit       	= false;
+    Opt.normalize       	= false;
     
     if nargin == 0
         Data = Opt;
@@ -73,10 +75,20 @@ if isempty(sessionArray)
     [sessionArray, ~] = task_session_array(subjectID, task, sessionSet);
 end
 
+if Opt.multiUnit
+    addMulti = '_multiUnit';
+else
+    addMulti = [];
+end
+if Opt.normalize
+    addNorm = '_normalized';
+else
+    addNorm = [];
+end
+iNormFactor = 1;
 
 
 nUnit = length(sessionArray);
-totalSSD = [];
 
 
 
@@ -117,6 +129,12 @@ for k = 1 : length(colorCohArray)
     Data.checkerOn.(colorCohArray{k}).goDist.rt = [];
     %     % Intialize Data structure for stop trials
     for m = 1 : length(epochArrayStop)
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopTarg.unitStop = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopDist.unitStop = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopStop.unitStop = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).goFast.unitStop = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).goSlow.unitStop = [];
+        
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopTarg.sdf = [];
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopDist.sdf = [];
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopStop.sdf = [];
@@ -160,11 +178,15 @@ end
 for iUnit = 1 : nUnit
     
     % Print out progress of the function
-        fprintf('%d of %d\tUnit: %s\t%s\n', iUnit, nUnit, sessionArray{iUnit}, unitArray{iUnit})
+    fprintf('%d of %d\tUnit: %s\t%s\n', iUnit, nUnit, sessionArray{iUnit}, unitArray{iUnit})
     
     % Get single session neural data for this unit
+    optData = ccm_options;
+    optData.multiUnit = Opt.multiUnit;
+    optData.printPlot = false;
+    optData.plotFlag = false;
     sessionUnit = [sessionArray(iUnit), unitArray(iUnit)];
-    iData = ccm_session_data(subjectID, sessionUnit);
+    iData = ccm_session_data(subjectID, sessionUnit, optData);
     
     ssdArray = iData.ssdArray;
     
@@ -203,6 +225,12 @@ for iUnit = 1 : nUnit
     end
     iRFList = [easyInInd, easyOutInd, hardInInd, hardOutInd]; % Make sure this same order as colorCohArray
     
+             if Opt.normalize
+%         iNormFactor = max(iData.responseOnset.colorCoh(iRFList(1)).goTarg.sdfMean);
+        normalWindow = -200 : 0;
+        normalAlign = iData.targOn.colorCoh(iRFList(1)).goTarg.alignTime;
+        iNormFactor = mean(iData.targOn.colorCoh(iRFList(1)).goTarg.sdfMean(normalAlign+normalWindow));
+            end
     
     
     
@@ -214,7 +242,7 @@ for iUnit = 1 : nUnit
             
             for k = 1 : length(colorCohArray)
                 
-                
+               
                 
                 
                 %              Collect Go Data
@@ -232,7 +260,7 @@ for iUnit = 1 : nUnit
                         sdfWindow = ccm_epoch_range(mEpoch, 'analyze');
                         
                         % Fill data with NaN if the condition has no trials
-                        if size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 1) < MIN_TRIAL
+                        if size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 1) <= MIN_TRIAL
                             sdfGo{iUnit, m, k, n} = ...
                                 nan(1, 1+sdfWindow(end)-sdfWindow(1));
                         else
@@ -253,7 +281,7 @@ for iUnit = 1 : nUnit
                                     nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 1), sdfWindow(end) - sdfWindow(1) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 2)+1)];
                             end
                             sdfGo{iUnit, m, k, n} = ...
-                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf(:,alignTime + sdfWindow), 1);
+                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf(:,alignTime + sdfWindow), 1) ./ iNormFactor;
                         end
                     end
                     
@@ -296,7 +324,7 @@ for iUnit = 1 : nUnit
                                             %                                         case {'stopDist'}
                                             %                                             sTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).stopDist.ssd(s).sdf, 1);
                                     end
-                                    if sTrial >= MIN_TRIAL && gTrial >= MIN_TRIAL
+                                    if sTrial >= MIN_TRIAL
                                         % Skip data collection if trying to collect
                                         % saccade-aligned data for stopStop trials
                                         if ~(strcmp(mEpoch, 'responseOnset') && strcmp(nOutcome, 'stopStop'));
@@ -310,36 +338,37 @@ for iUnit = 1 : nUnit
                                             end
                                             
                                             alignTime = iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).alignTime;
-                                            %                             if isempty(alignTime)
-                                            %                                 alignTime = nan;
-                                            %                             end
-                                            
-                                            % Might need to pad the sdf if aligntime is before the sdf window beginning
-                                            if alignTime <  -sdfWindow(1)
-                                                iData.(mEpoch).colorCoh(iRFList(k)).stopTarg.ssd(s).sdf = ...
-                                                    [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), -sdfWindow(1)+1 - alignTime),...
-                                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf];
-                                                alignTime = alignTime - sdfWindow(1)+1;
+                                            if ~isempty(alignTime)
+                                                %                                 alignTime = nan;
+                                                %                             end
+                                                
+                                                % Might need to pad the sdf if aligntime is before the sdf window beginning
+                                                if alignTime <  -sdfWindow(1)
+                                                    iData.(mEpoch).colorCoh(iRFList(k)).stopTarg.ssd(s).sdf = ...
+                                                        [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), -sdfWindow(1)+1 - alignTime),...
+                                                        iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf];
+                                                    alignTime = alignTime - sdfWindow(1)+1;
+                                                end
+                                                % Might need to pad the sdf if aligntime
+                                                % doesn't leave enough space before end of sdf
+                                                if alignTime + sdfWindow(end) > size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)
+                                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf = ...
+                                                        [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf,...
+                                                        nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), sdfWindow(end) -sdfWindow(1) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)+1)];
+                                                end
+                                                
+                                                ssdStop(iUnit, m, k, n, s) = ...
+                                                    ssdArray(s);
+                                                %                                             mEpoch
+                                                %                                             nOutcome
+                                                %                                             s
+                                                %                                             alignTime
+                                                % if isempty(alignTime)
+                                                %     disp('paused here')
+                                                % end
+                                                sdfStop{iUnit, m, k, n, s} = ...
+                                                    nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf(:,alignTime + sdfWindow), 1) ./ iNormFactor;
                                             end
-                                            % Might need to pad the sdf if aligntime
-                                            % doesn't leave enough space before end of sdf
-                                            if alignTime + sdfWindow(end) > size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)
-                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf = ...
-                                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf,...
-                                                    nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), sdfWindow(end) -sdfWindow(1) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)+1)];
-                                            end
-                                            
-                                            ssdStop(iUnit, m, k, n, s) = ...
-                                                ssdArray(s);
-                                            %                                             mEpoch
-                                            %                                             nOutcome
-                                            %                                             s
-                                            %                                             alignTime
-                                            % if isempty(alignTime)
-                                            %     disp('paused here')
-                                            % end
-                                            sdfStop{iUnit, m, k, n, s} = ...
-                                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf(:,alignTime + sdfWindow), 1);
                                         end
                                     end
                                 end
@@ -385,9 +414,12 @@ for iUnit = 1 : size(unit, 1)
             nOutcome = outcomeArrayStop{n};
             for s = 1 : nSsd
                 if ~isempty(sdfStop{iUnit, 1, k, n, s})
-                    Data.unitStop = [Data.unitStop; [sessionArray(iUnit), unitArray(iUnit)]];
+                    %                     Data.unitStop = [Data.unitStop; [sessionArray(iUnit), unitArray(iUnit)]];
                     for m = 1 : length(epochArrayStop)
                         mEpoch = epochArrayStop{m};
+                        Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).unitStop = ...
+                            [Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).unitStop; ...
+                            [sessionArray(iUnit), unitArray(iUnit)]];
                         Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).sdf = ...
                             [Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).sdf; ...
                             sdfStop{iUnit, m, k, n, s}];
@@ -409,8 +441,7 @@ end
 
 
 
-
-save(fullfile(dataPath, ['ccm_',Opt.categoryName,'_neuron_population']), 'Data')
+save(fullfile(dataPath, ['ccm_',Opt.categoryName,'_neuron_population',addMulti,addNorm]), '-struct', 'Data','-v7.3')
 return
 
 

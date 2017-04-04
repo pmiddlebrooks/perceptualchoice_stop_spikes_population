@@ -108,6 +108,114 @@ for i = 1 :length(ssdArray)
 end
 
 
+%%
 
 
+classicEpoch = 'presacc';
+
+% Load Classic neuron classifications
+c = load(fullfile(dataPath, ['ccm_',classicEpoch,'_neurons', addMulti]));
+classic = c.neurons;
+
+rampEpoch = 'presaccRamp';
+
+% Load Classic neuron classifications
+r = load(fullfile(dataPath, ['ccm_',rampEpoch,'_neurons', addMulti]));
+ramp = r.neurons;
+
+
+[~, iCla, iRmp] = setxor(classic, ramp);
+classicRamp = intersect(classic, ramp);
+classicNoRamp = classic(iCla, :);
+rampNoClassic = ramp(iRmp, :);
+
+%%
+neuronTypes = classicRamp;
+    neurons = table();
+for i = 61 : size(neuronTypes, 1)
+    unitInfo = table();
+    unitInfo.sessionID  = neuronTypes.sessionID(i);
+    unitInfo.unit       = neuronTypes.unit(i);
+    unitInfo.hemisphere  = neuronTypes.hemisphere(i);
+    unitInfo.rf         = neuronTypes.rf(i);
+    
+    fprintf('%02d of %d\t%s\t%s\n',i,size(neuronTypes, 1), neuronTypes.sessionID{i},neuronTypes.unit{i})
+    fprintf('Hem: %s\tRF: %s\n',neuronTypes.hemisphere{i},neuronTypes.rf{i})
+    
+    opt.unitArray = unitInfo.unit;
+    opt.hemisphere = neuronTypes.hemisphere{i};
+    opt.multiUnit = multiUnit;
+    
+    pdfName = [neuronTypes.sessionID{i},'_ccm_',neuronTypes.unit{i},'_neuron_collapse.pdf'];
+    if exist(fullfile(local_figure_path,subject,'sessionCollapseChoice',pdfName))
+      open(fullfile(local_figure_path,subject,'sessionCollapseChoice',pdfName))
+    else
+      iData = ccm_session_data(subject, neuronTypes.sessionID{i}, opt);
+    end
+    
+    
+    prompt = 'add to list?';
+    addToList = input(prompt);
+    if addToList
+        
+        neurons = [neurons; unitInfo];
+        
+    end
+    clear iData
+end
+
+%%
+subject = 'broca';
+
+opt                 = ccm_options;
+opt.collapseSignal  = true;
+opt.collapseTarget  = true;
+opt.doStops         = false;
+opt.plotFlag        = false;
+opt.printPlot       = false;
+opt.figureHandle   	= 106;
+opt.multiUnit       = multiUnit;
+% opt.multiUnit       = false;
+
+iUnit               = {'bp228n02', 'spikeUnit1'};
+iData               = ccm_session_data(subject, iUnit, opt);
+%%
+iCat              	= ccm_classify_neuron(iData);
+    
+
+%%
+psWin = [-149:-99];
+psRate = nansum(Data.responseOnset.colorCoh(sigInd).goTarg.raster(:,postsaccAlign + psWin), 2)  .* 1000 ./ length(psWin)
+    
+   %%
+   
+   categoryList = {'presaccNoCancel'};
+opt = ccm_population_neuron_plot;
+
+opt.doStops = true;
+opt.easyOnly = false;
+opt.multiUnit = multiUnit;
+opt.normalize = true;
+opt.categoryName = categoryList{1};
+    ccm_population_neuron_plot(subject,projectRoot,projectDate,opt)
+
+%%
+
+load(fullfile(dataPath, ['ccm_neuronTypes', addMulti]));
+
+modulated = neuronTypes.fix | neuronTypes.vis | neuronTypes.checker | neuronTypes.presacc | neuronTypes.postsacc;
+
+%%
+fileName = fullfile(dataPath, 'go_vs_canceled', ssrtUse, ['ccm_canceled_vs_go_neuronTypes', addMulti]);
+load(fileName);
+%%
+[C,ia,ic] = unique(cancelTypes.sessionID);
+
+cancelTypes = cancelTypes(ia,:);
+
+cancelTypes(cellfun(@isempty, cancelTypes.stopStopSsrt),:) = [];
+
+ssrt = cell2mat(cellfun(@(x) x(1), cancelTypes.stopStopSsrt, 'uni', false))
+
+deleteSessionSsrt = cancelTypes.sessionID(ssrt < 20)
 

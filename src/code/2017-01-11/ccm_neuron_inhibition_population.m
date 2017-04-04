@@ -11,7 +11,13 @@ end
 
 % ____________________    LOAD DATA    ___________________
 dataPath = fullfile(projectRoot,'data',projectDate,subject);
+fileName = 'ccm_neuronTypes';
+if options.multiUnit
+    fileName = [fileName, '_multiUnit'];
+end
 load(fullfile(dataPath, ['ccm_',Opt.categoryName,'_neurons'])) % Load Data struct for that population
+
+
 sessionList = neurons.sessionID;
 unitList = neurons.unit;
 

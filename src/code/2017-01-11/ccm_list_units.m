@@ -1,4 +1,4 @@
-function ccm_list_units(subject,projectRoot,projectDate, append)
+function ccm_list_units(subject,projectRoot,projectDate, append, multiUnit)
 %
 % Create a table (using stats from all sessions) of sessions with neurons, classifying the neurons w.r.t different epochs:
 %
@@ -47,7 +47,7 @@ for i = startInd :  length(sessionList)
         
         % See how many units we'll loop through for this session (to save
         % disk space  - so matlab doesn't crash)
-        [~, S, ~] = load_data(subject, sessionList{i});
+        [~, S, ~] = load_data(subject, sessionList{i}, ccm_min_vars, multiUnit);
         jUnit = table();
         jUnit.sessionID = sessionList(i);
         jUnit.hemisphere = hemisphereList(i);
@@ -56,7 +56,10 @@ for i = startInd :  length(sessionList)
             
             units = [units; jUnit];
         end
+        if multiUnit
+        save(fullfile(dataPath, 'ccm_multiunits'), 'units')
+        else
         save(fullfile(dataPath, 'ccm_units'), 'units')
-        
+        end
     end
 end

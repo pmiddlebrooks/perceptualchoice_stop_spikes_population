@@ -1,45 +1,66 @@
-function neuronTypes = ccm_classify_neuron_pop(subject,projectRoot,projectDate, append)
+function neuronTypes = ccm_classify_neuron_pop(subject,projectRoot,projectDate, options)
 %
 % Create a table (using stats from all sessions) of sessions with neurons, classifying the neurons w.r.t different epochs:
 %
 %
+if nargin < 4
+    options.multiUnit   = false;
+    options.append      = false;
+    options.parpoolSize = 4;
+end
+
 dataPath = fullfile(projectRoot,'data',projectDate,subject);
 
 
 % Load the list of units that was created using ccm_list_units.m
-load(fullfile(dataPath, 'ccm_units.mat'))
+switch options.multiUnit
+    case false
+        load(fullfile(dataPath, 'ccm_units.mat'))
+    case true
+        load(fullfile(dataPath, 'ccm_multiunits.mat'))
+end
 
 sessionID = units.sessionID;
 unit = units.unit;
- 
-if append
+
+if options.append
     load(fullfile(dataPath, 'ccm_neuronTypes'), 'neuronTypes')
     neuronTypes = table2cell(neuronTypes);
     
-%     lastSession = neuronTypes(end, 1);
+    %     lastSession = neuronTypes(end, 1);
     %     ind = find(strcmp(lastSession, neuronTypes.sessionID));
-%     startInd = 1 + find(strcmp(lastSession, sessionList));
+    %     startInd = 1 + find(strcmp(lastSession, sessionList));
     startInd = 1 + size(neuronTypes, 1);
     
     % Add empty cells the size of the new units to add
-    neuronTypes = [neuronTypes; cell(length(sessionID) - size(neuronTypes, 1), 13)];
+    neuronTypes = [neuronTypes; cell(length(sessionID) - size(neuronTypes, 1), 14)];
 else
- 	neuronTypes = cell(size(units, 1), 13);
+    neuronTypes = cell(size(units, 1), 14);
     startInd = 1;
 end
+
+
+
+
+
 
 opt                 = ccm_options;
 opt.collapseSignal  = true;
 opt.collapseTarget  = true;
 opt.doStops         = false;
-opt.plotFlag        = false;
-opt.printPlot       = false;
+opt.plotFlag        = true;
+opt.printPlot       = true;
+opt.figureHandle   	= 106;
+opt.multiUnit       = options.multiUnit;
+
+
+
 
 tic
-poolID = parpool(6);
+poolID = parpool(options.parpoolSize);
 parfor i = startInd :  length(sessionID)
-% startInd = 298;
-% for i = startInd :  startInd%length(sessionID)
+    % startInd = 298;
+    % for i = startInd :  startInd%length(sessionID)
     
     
     fprintf('%02d\t%s\t%s\n',i,sessionID{i}, unit{i})
@@ -49,7 +70,7 @@ parfor i = startInd :  length(sessionID)
     iCat              	= ccm_classify_neuron(iData);
     neuronTypes(i,:)  	= iCat;
     
-
+    
 end
 delete(poolID)
 toc
@@ -64,10 +85,16 @@ neuronTypes = cell2table(neuronTypes, 'VariableNames',...
     'presacc'...
     'presaccMax'...
     'presaccRamp'...
+    'presaccPeak'...
     'postsacc'...
     'reward'...
     'intertrial'});
 
-save(fullfile(dataPath, 'ccm_neuronTypes'), 'neuronTypes')
+if options.multiUnit
+    save(fullfile(dataPath, 'ccm_neuronTypes_multiUnit'), 'neuronTypes')
+else
+    save(fullfile(dataPath, 'ccm_neuronTypes'), 'neuronTypes')
+end
+
 
 

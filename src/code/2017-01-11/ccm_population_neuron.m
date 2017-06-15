@@ -1,8 +1,7 @@
 function Data = ccm_population_neuron(subjectID,projectRoot,projectDate,Opt)
 
 %
-% function Data = ccm_population_neuron(subjectID, sessionID, plotFlag,
-% unitArray)
+% function Data = ccm_population_neuron(subjectID,projectRoot,projectDate,Opt)
 %
 % Population neuron collection for choice countermanding task. Only plots the
 % sdfs. To see rasters, use ccm_single_neuron_rasters, which displays all
@@ -20,10 +19,6 @@ function Data = ccm_population_neuron(subjectID,projectRoot,projectDate,Opt)
 %    opt.dataType = 'neuron', 'lfp', 'erp';
 %
 %    opt.doStops        = true, false;
-%    opt.filterData 	= false, true;
-%    opt.stopHz         = 50, <any number, above which signal is filtered;
-%    opt.unitArray      = {'spikeUnit17a'},'each', units want to analyze
-%
 %
 % Returns Data structure with fields:
 %
@@ -112,6 +107,9 @@ rtStop  = nan(nUnit, length(colorCohArray), length(outcomeArrayGo), nSsd);
 sdfGo    = cell(nUnit, length(epochArrayGo), length(colorCohArray), length(outcomeArrayGo));
 sdfStop  = cell(nUnit, length(epochArrayStop), length(colorCohArray), length(outcomeArrayStop), nSsd);
 
+rasterGo    = cell(nUnit, length(epochArrayGo), length(colorCohArray), length(outcomeArrayGo));
+rasterStop  = cell(nUnit, length(epochArrayStop), length(colorCohArray), length(outcomeArrayStop), nSsd);
+
 ssdStop = nan(nUnit, length(epochArrayStop), length(colorCohArray), length(outcomeArrayStop), nSsd);
 
 
@@ -124,6 +122,9 @@ for k = 1 : length(colorCohArray)
     for m = 1 : length(epochArrayGo)
         Data.(epochArrayGo{m}).(colorCohArray{k}).goTarg.sdf = [];
         Data.(epochArrayGo{m}).(colorCohArray{k}).goDist.sdf = [];
+        
+        Data.(epochArrayGo{m}).(colorCohArray{k}).goTarg.raster = [];
+        Data.(epochArrayGo{m}).(colorCohArray{k}).goDist.raster = [];
     end
     Data.checkerOn.(colorCohArray{k}).goTarg.rt = [];
     Data.checkerOn.(colorCohArray{k}).goDist.rt = [];
@@ -140,6 +141,12 @@ for k = 1 : length(colorCohArray)
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopStop.sdf = [];
         Data.(epochArrayStop{m}).(colorCohArray{k}).goFast.sdf = [];
         Data.(epochArrayStop{m}).(colorCohArray{k}).goSlow.sdf = [];
+        
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopTarg.raster = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopDist.raster = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).stopStop.raster = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).goFast.raster = [];
+        Data.(epochArrayStop{m}).(colorCohArray{k}).goSlow.raster = [];
         
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopTarg.ssd = [];
         Data.(epochArrayStop{m}).(colorCohArray{k}).stopDist.ssd = [];
@@ -160,19 +167,25 @@ end
 
 
 for m = 1 : length(epochArrayGo)
-    mEpoch = epochArrayGo{m};
-    sdfWindow = ccm_epoch_range(mEpoch, 'analyze');
+    mEpoch          = epochArrayGo{m};
+    sdfWindow       = ccm_epoch_range(mEpoch, 'analyze');
     Data.(epochArrayGo{m}).alignGo = -sdfWindow(1);
     
 end
 for m = 1 : length(epochArrayStop)
-    mEpoch = epochArrayStop{m};
-    sdfWindow = ccm_epoch_range(mEpoch, 'analyze');
+    mEpoch          = epochArrayStop{m};
+    sdfWindow       = ccm_epoch_range(mEpoch, 'analyze');
     Data.(epochArrayStop{m}).alignStop = -sdfWindow(1);
 end
 
 
 
+
+% Get single session neural data for this unit
+optData             = ccm_options;
+optData.multiUnit   = Opt.multiUnit;
+optData.printPlot   = false;
+optData.plotFlag    = false;
 
 
 for iUnit = 1 : nUnit
@@ -180,15 +193,10 @@ for iUnit = 1 : nUnit
     % Print out progress of the function
     fprintf('%d of %d\tUnit: %s\t%s\n', iUnit, nUnit, sessionArray{iUnit}, unitArray{iUnit})
     
-    % Get single session neural data for this unit
-    optData = ccm_options;
-    optData.multiUnit = Opt.multiUnit;
-    optData.printPlot = false;
-    optData.plotFlag = false;
-    sessionUnit = [sessionArray(iUnit), unitArray(iUnit)];
-    iData = ccm_session_data(subjectID, sessionUnit, optData);
+    sessionUnit     = [sessionArray(iUnit), unitArray(iUnit)];
+    iData           = ccm_session_data(subjectID, sessionUnit, optData);
     
-    ssdArray = iData.ssdArray;
+    ssdArray        = iData.ssdArray;
     
     
     % Get the Receptive Field. If there's no RF, use the contralateral
@@ -225,12 +233,12 @@ for iUnit = 1 : nUnit
     end
     iRFList = [easyInInd, easyOutInd, hardInInd, hardOutInd]; % Make sure this same order as colorCohArray
     
-             if Opt.normalize
-%         iNormFactor = max(iData.responseOnset.colorCoh(iRFList(1)).goTarg.sdfMean);
-        normalWindow = -200 : 0;
-        normalAlign = iData.targOn.colorCoh(iRFList(1)).goTarg.alignTime;
-        iNormFactor = mean(iData.targOn.colorCoh(iRFList(1)).goTarg.sdfMean(normalAlign+normalWindow));
-            end
+    if Opt.normalize
+        %         iNormFactor = max(iData.responseOnset.colorCoh(iRFList(1)).goTarg.sdfMean);
+        normalWindow    = -200 : 0;
+        normalAlign     = iData.targOn.colorCoh(iRFList(1)).goTarg.alignTime;
+        iNormFactor     = mean(iData.targOn.colorCoh(iRFList(1)).goTarg.sdfMean(normalAlign+normalWindow));
+    end
     
     
     
@@ -242,7 +250,7 @@ for iUnit = 1 : nUnit
             
             for k = 1 : length(colorCohArray)
                 
-               
+                
                 
                 
                 %              Collect Go Data
@@ -267,21 +275,30 @@ for iUnit = 1 : nUnit
                             alignTime = iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).alignTime;
                             
                             % Might need to pad the sdf if aligntime is before the sdf window beginning
-                            if alignTime <  -sdfWindow(1)
-                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf = ...
-                                    [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 1), -sdfWindow(1) - alignTime),...
-                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf];
-                                alignTime = alignTime - sdfWindow(1);
+                            if alignTime <=  -sdfWindow(1)
+                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean = ...
+                                    [nan(1, -sdfWindow(1) - alignTime + 1),...
+                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean];
+                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster = ...
+                                    [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster, 1), -sdfWindow(1) - alignTime + 1),...
+                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster];
+                                alignTime = 1 - sdfWindow(1);
                             end
                             % Might need to pad the sdf if aligntime
                             % doesn't leave enough space before end of sdf
-                            if alignTime + sdfWindow(end) > size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 2)
-                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf = ...
-                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf,...
-                                    nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 1), sdfWindow(end) - sdfWindow(1) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf, 2)+1)];
+                            if alignTime + sdfWindow(end) > length(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean)
+                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean = ...
+                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean,...
+                                    nan(1, alignTime + sdfWindow(end) - length(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean)+1)];
+                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster = ...
+                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster,...
+                                    nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster, 1), alignTime + sdfWindow(end) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster, 2)+1)];
                             end
+                            %                             [m k n]
                             sdfGo{iUnit, m, k, n} = ...
-                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdf(:,alignTime + sdfWindow), 1) ./ iNormFactor;
+                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).sdfMean(alignTime + sdfWindow) ./ iNormFactor;
+                            rasterGo{iUnit, m, k, n} = ...
+                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).raster(:,alignTime + sdfWindow), 1);
                         end
                     end
                     
@@ -311,64 +328,84 @@ for iUnit = 1 : nUnit
                                     % Are there enough trials in this stop
                                     % outcome?
                                     
+                                    %                                     if (m == 1 && k == 4 && n == 1 && s == 1) || (m == 1 && k == 4 && n == 3 && s == 1)
+                                    %                                                 [m k n s]
+                                    %                                         disp('pause here')
+                                    %                                     end
+                                    
+                                    sTrial = 0;
+                                    gTrial = 0;
                                     switch nOutcome
                                         case {'stopTarg', 'goFast'}
                                             sTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).stopTarg.ssd(s).sdf, 1);
-                                            gTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).goFast.ssd(s).sdf, 1);
+                                            %                                             gTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).goFast.ssd(s).sdf, 1);
                                         case {'stopStop', 'goSlow'}
-                                            if ~strcmp(mEpoch, 'responseOnset') % No RT data on stopStop trials
-                                                sTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).stopStop.ssd(s).sdf, 1);
-                                                gTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).goSlow.ssd(s).sdf, 1);
+                                            % For response onset, collect
+                                            % stopStop SDFs aligned on mean
+                                            % RT
+                                            if strcmp(mEpoch, 'responseOnset') % No RT data on stopStop trials
+                                                sTrial = size(iData.checkerOn.colorCoh(iRFList(k)).stopStop.ssd(s).sdf, 1);
                                             else
+                                                sTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).stopStop.ssd(s).sdf, 1);
                                             end
-                                            %                                         case {'stopDist'}
-                                            %                                             sTrial = size(iData.(mEpoch).colorCoh(iRFList(k)).stopDist.ssd(s).sdf, 1);
+                                            
                                     end
                                     if sTrial >= MIN_TRIAL
-                                        % Skip data collection if trying to collect
-                                        % saccade-aligned data for stopStop trials
-                                        if ~(strcmp(mEpoch, 'responseOnset') && strcmp(nOutcome, 'stopStop'));
-                                            
-                                            % Collect RTs if it's checker Onset epoch
-                                            % and it's not stopStop outcome (make sure
-                                            % saccade was made)
-                                            if strcmp(mEpoch, 'checkerOn') && ~(strcmp(nOutcome, 'stopStop') || strcmp(nOutcome, 'goSlow'))
-                                                rtStop(iUnit, k, n, s) = ...
-                                                    nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).rt);
-                                            end
-                                            
+                                        
+                                        % Collect RTs if it's checker Onset epoch
+                                        % and it's not stopStop outcome (make sure
+                                        % saccade was made)
+                                        if strcmp(mEpoch, 'checkerOn') && ~strcmp(nOutcome, 'stopStop')
+                                            rtStop(iUnit, k, n, s) = ...
+                                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).rt);
+                                        end
+                                        
+%                                         if strcmp(mEpoch, 'responseOnset') && strcmp(nOutcome, 'stopStop')
+%                                             alignTime = iData.checkerOn.colorCoh(iRFList(k)).stopStop.ssd(s).alignTime + ...
+%                                                 round(nanmean(iData.checkerOn.colorCoh(iRFList(k)).goSlow.ssd(s).rt));
+%                                             
+%                                         else
                                             alignTime = iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).alignTime;
-                                            if ~isempty(alignTime)
-                                                %                                 alignTime = nan;
-                                                %                             end
-                                                
-                                                % Might need to pad the sdf if aligntime is before the sdf window beginning
-                                                if alignTime <  -sdfWindow(1)
-                                                    iData.(mEpoch).colorCoh(iRFList(k)).stopTarg.ssd(s).sdf = ...
-                                                        [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), -sdfWindow(1)+1 - alignTime),...
-                                                        iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf];
-                                                    alignTime = alignTime - sdfWindow(1)+1;
+%                                         end
+                                        if ~isempty(alignTime)
+                                            %                                 alignTime = nan;
+                                            %                             end
+                                            
+                                            % Might need to pad the sdf if aligntime is before the sdf window beginning
+                                            if alignTime <=  -sdfWindow(1)
+                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean = ...
+                                                    [nan(1, -sdfWindow(1) - alignTime + 1),...
+                                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean];
+                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster = ...
+                                                    [nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster, 1), -sdfWindow(1)+1 - alignTime),...
+                                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster];
+                                                if strcmp(mEpoch, 'checkerOn')
+                                                    disp('Padding SDF, check alignTime!')
                                                 end
-                                                % Might need to pad the sdf if aligntime
-                                                % doesn't leave enough space before end of sdf
-                                                if alignTime + sdfWindow(end) > size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)
-                                                    iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf = ...
-                                                        [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf,...
-                                                        nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 1), sdfWindow(end) -sdfWindow(1) - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf, 2)+1)];
-                                                end
-                                                
-                                                ssdStop(iUnit, m, k, n, s) = ...
-                                                    ssdArray(s);
-                                                %                                             mEpoch
-                                                %                                             nOutcome
-                                                %                                             s
-                                                %                                             alignTime
-                                                % if isempty(alignTime)
-                                                %     disp('paused here')
-                                                % end
-                                                sdfStop{iUnit, m, k, n, s} = ...
-                                                    nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdf(:,alignTime + sdfWindow), 1) ./ iNormFactor;
+                                                alignTime = 1 - sdfWindow(1);
+%                                                 alignTime = alignTime - sdfWindow(1)+1;
                                             end
+                                            % Might need to pad the sdf if aligntime
+                                            % doesn't leave enough space before end of sdf
+                                            if alignTime + sdfWindow(end) > length(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean)
+                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean = ...
+                                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean,...
+                                                    nan(1, sdfWindow(end) + alignTime - length(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean)+1)];
+                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster = ...
+                                                    [iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster,...
+                                                    nan(size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster, 1), sdfWindow(end)  + alignTime - size(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster, 2)+1)];
+                                            end
+                                            
+                                            ssdStop(iUnit, m, k, n, s) = ...
+                                                ssdArray(s);
+%                                                                                             [m k n s]
+%                                                                                             if m == 5 && k == 1 && n == 2 && s == 3
+%                                                                                                 disp('here')
+%                                                                                             end
+                                            sdfStop{iUnit, m, k, n, s} = ...
+                                                iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).sdfMean(alignTime + sdfWindow) ./ iNormFactor;
+                                            rasterStop{iUnit, m, k, n, s} = ...
+                                                nanmean(iData.(mEpoch).colorCoh(iRFList(k)).(nOutcome).ssd(s).raster(:,alignTime + sdfWindow), 1);
                                         end
                                     end
                                 end
@@ -401,6 +438,7 @@ for k = 1 : length(colorCohArray)
         for m = 1 : length(epochArrayGo)
             
             Data.(epochArrayGo{m}).(colorCohArray{k}).(outcomeArrayGo{n}).sdf = cell2mat(sdfGo(:, m, k, n));
+            Data.(epochArrayGo{m}).(colorCohArray{k}).(outcomeArrayGo{n}).raster = cell2mat(rasterGo(:, m, k, n));
         end
         Data.checkerOn.(colorCohArray{k}).(outcomeArrayGo{n}).rt = rtGo(:, k, n);
     end
@@ -414,7 +452,6 @@ for iUnit = 1 : size(unit, 1)
             nOutcome = outcomeArrayStop{n};
             for s = 1 : nSsd
                 if ~isempty(sdfStop{iUnit, 1, k, n, s})
-                    %                     Data.unitStop = [Data.unitStop; [sessionArray(iUnit), unitArray(iUnit)]];
                     for m = 1 : length(epochArrayStop)
                         mEpoch = epochArrayStop{m};
                         Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).unitStop = ...
@@ -423,10 +460,13 @@ for iUnit = 1 : size(unit, 1)
                         Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).sdf = ...
                             [Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).sdf; ...
                             sdfStop{iUnit, m, k, n, s}];
+                        Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).raster = ...
+                            [Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).raster; ...
+                            rasterStop{iUnit, m, k, n, s}];
                         Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).ssd = ...
                             [Data.(epochArrayStop{m}).(colorCohArray{k}).(outcomeArrayStop{n}).ssd; ...
                             ssdStop(iUnit, m, k, n, s)];
-                        if strcmp(mEpoch, 'checkerOn') && ~(strcmp(nOutcome, 'stopStop') || strcmp(nOutcome, 'goSlow'))
+                        if strcmp(mEpoch, 'checkerOn') && ~strcmp(nOutcome, 'stopStop')
                             Data.checkerOn.(colorCohArray{k}).(outcomeArrayStop{n}).rt = ...
                                 [Data.checkerOn.(colorCohArray{k}).(outcomeArrayStop{n}).rt;...
                                 rtStop(:, k, n, s)];

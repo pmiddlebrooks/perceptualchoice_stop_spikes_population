@@ -218,4 +218,86 @@ cancelTypes(cellfun(@isempty, cancelTypes.stopStopSsrt),:) = [];
 ssrt = cell2mat(cellfun(@(x) x(1), cancelTypes.stopStopSsrt, 'uni', false))
 
 deleteSessionSsrt = cancelTypes.sessionID(ssrt < 20)
+%%
 
+stopStopInd = ismember(cell2table(Data.targOn.easyIn.stopStop.unitStop,'VariableNames',{'sessionID' 'unit'}), neurons(:,1:2))
+
+
+%%
+clf
+figure(1)
+hold all
+i = 1
+goInd = find(goTargInd)
+plot(Data.checkerOn.easyIn.goTarg.sdf(goInd(i),:))
+plot(Data.checkerOn.easyOut.goTarg.sdf(goInd(i),:))
+
+%%
+
+% easyInSpike = mean(Data.checkerOn.easyIn.goTarg.sdf(goTargInd,epochBegin:epochEnd), 2);
+% hardInSpike = mean(Data.checkerOn.hardIn.goTarg.sdf(goTargInd,epochBegin:epochEnd), 2);
+easyInSpike = sum(Data.checkerOn.easyIn.goTarg.raster(goTargInd,epochBegin:epochEnd), 2) ./ epochDuration;
+hardInSpike = sum(Data.checkerOn.hardIn.goTarg.raster(goTargInd,epochBegin:epochEnd), 2) ./ epochDuration;
+easyInRT = Data.checkerOn.easyIn.goTarg.rt(goTargInd);
+hardInRT = Data.checkerOn.hardIn.goTarg.rt(goTargInd);
+
+rtDiff = easyInRT - hardInRT;
+spikeDiff = easyInSpike - hardInSpike;
+figure(4)
+clf
+plot(rtDiff, spikeDiff, '.k')
+
+%%
+ssdAll = Data.(opt.epochArray{e}).(conditionArray{cInd}).stopStop.ssd(stopStopInd);
+sdfAll = Data.(opt.epochArray{e}).(conditionArray{cInd}).stopStop.sdf(stopStopInd,:);
+sdfAllGo = Data.(opt.epochArray{e}).(conditionArray{cInd}).goSlow.sdf(stopStopInd,:);
+
+earlyInd = Data.(opt.epochArray{e}).(conditionArray{cInd}).stopStop.ssd(stopStopInd) < 240;
+lateInd = Data.(opt.epochArray{e}).(conditionArray{cInd}).stopStop.ssd(stopStopInd) > 240;
+
+earlySdfMean = nanmean(sdfAll(earlyInd,:), 1);
+earlySdfMeanGo = nanmean(sdfAllGo(earlyInd,:), 1);
+lateSdfMean = nanmean(sdfAll(lateInd,:), 1);
+lateSdfMeanGo = nanmean(sdfAllGo(lateInd,:), 1);
+
+earlySsdMean = nanmean(ssdAll(earlyInd,:));
+lateSsdMean = nanmean(ssdAll(lateInd,:));
+
+
+figure(55)
+clf
+hold all
+plot(earlySdfMean(align+epochRange),'k')
+plot(lateSdfMean(align+epochRange),'r')
+plot(earlySdfMeanGo(align+epochRange),'g')
+plot(lateSdfMeanGo(align+epochRange),'b')
+
+plot(meanGoSlowSdf(align+epochRange),'--k')
+plot(meanStopStopSdf(align+epochRange),'--k')
+
+%%
+subject = 'joule';
+
+projectDate = '2017-01-11';
+projectRoot = '/Volumes/HD-1/Users/paulmiddlebrooks/perceptualchoice_stop_spikes_population';
+
+addpath(genpath(fullfile(projectRoot,'src/code',projectDate)));
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+
+load(fullfile(dataPath, ['ccm_neuronTypes', addMulti]));
+
+sessionList = unique(neuronTypes.sessionID);
+
+nTrial = nan(length(sessionList),1);
+nAbort = nan(length(sessionList),1);
+for i = 1 : length(sessionList)
+    [trialData, SessionData] = load_data(subject, sessionList{i},ccm_min_vars);
+    nTrial(i) = length(trialData.rt);
+    nAbort(i) = sum(strcmp(trialData.trialOutcome, 'choiceStimulusAbort'));
+    
+end
+sum(nTrial)
+mean(nTrial)
+sum(nAbort)/sum(nTrial)
+    

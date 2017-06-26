@@ -52,11 +52,11 @@ else
     startInd = 1;
 end
 tic
-% poolID = parpool(options.parpoolSize);
-% parfor i = startInd : length(sessionID)
-sessionID = {'bp229n02-mm','bp239n02'};
-unit = {'spikeUnit25','spikeUnit25'};
-    for i = startInd : length(sessionID)
+poolID = parpool(options.parpoolSize);
+parfor i = startInd : length(sessionID)
+% sessionID = {'bp229n02-mm','bp239n02'};
+% unit = {'spikeUnit25','spikeUnit25'};
+%     for i = startInd : length(sessionID)
     %     fprintf('%02d\t%s\t%s\n',i,sessionID{i}, unit{i})
     
     iData = ccm_neuron_stop_vs_go(subject, sessionID{i}, unit(i), options);

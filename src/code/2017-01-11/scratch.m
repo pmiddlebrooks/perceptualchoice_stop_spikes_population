@@ -28,7 +28,7 @@ for i = 1 : size(neurons, 1)
     % find the indices in cancelTypes that correspond to this unit
     iInd = strcmp(neurons.sessionID(i), cancelTypes.sessionID) & strcmp(neurons.unit(i), cancelTypes.unit);
     cancelData = [cancelData; cancelTypes(iInd,:)];
-
+    
 end
 
 
@@ -61,50 +61,50 @@ figureHandle = 68;
 clf
 
 ax(1, easyPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(1, easyPlot) yAxesPosition(1, easyPlot) axisWidth axisHeight]);
-         hold(ax(1, easyPlot), 'on')
+hold(ax(1, easyPlot), 'on')
 cla
 ax(1, hardPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(1, hardPlot) yAxesPosition(1, hardPlot) axisWidth axisHeight]);
-         hold(ax(1, hardPlot), 'on')
+hold(ax(1, hardPlot), 'on')
 cla
 
 
-    easyInd = cellfun(@(x) x == 1, cancelData.stopStopCond, 'uni', false);
-    hardInd = cellfun(@(x) x == 2, cancelData.stopStopCond, 'uni', false);
+easyInd = cellfun(@(x) x == 1, cancelData.stopStopCond, 'uni', false);
+hardInd = cellfun(@(x) x == 2, cancelData.stopStopCond, 'uni', false);
 
 for i = 1 :length(ssdArray)
     ssdInd =  cellfun(@(x) x == ssdArray(i), cancelData.stopStopSsd, 'uni', false);
-
+    
     iEasyCoh = cellfun(@(x,y,z) x(y & z), cancelData.stopStopCond, easyInd, ssdInd, 'uni', false);
     ssdEasy{i} = cellfun(@(x,y,z) x(y & z), cancelData.stopStopSsd, easyInd, ssdInd, 'uni', false);
-
+    
     iHardCoh = cellfun(@(x,y,z) x(y & z), cancelData.stopStopCond, hardInd, ssdInd, 'uni', false);
     ssdHard{i} = cellfun(@(x,y,z) x(y & z), cancelData.stopStopSsd, hardInd, ssdInd, 'uni', false);
-
+    
     fprintf('Easy units: %d\n', sum(~cellfun(@isempty, ssdEasy{i})))
     fprintf('Hard units: %d\n', sum(~cellfun(@isempty, ssdHard{i})))
     if sum(cell2mat(ssdEasy{i}))
         cancelTimeEasy2Std{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.cancelTime2Std, easyInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
         iUnitEasyInd = cellfun(@(x) ~isempty(x), cancelTimeEasy2Std{i});
         cancelTimeEasySsrt{i} = cell2mat(cancelTimeEasy2Std{i}(iUnitEasyInd)) - cancelData.ssrt(iUnitEasyInd);
-
+        
         scatter(ax(1, easyPlot), cell2mat(ssdEasy{i}), cell2mat(cancelTimeEasy2Std{i}))
-    
+        
     end
     if sum(cell2mat(ssdHard{i}))
         cancelTimeHard2Std{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.cancelTime2Std, hardInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
-        iUnitHardInd = cellfun(@(x) ~isempty(x), cancelTimeHard2Std{i});    
+        iUnitHardInd = cellfun(@(x) ~isempty(x), cancelTimeHard2Std{i});
         cancelTimeHardSsrt{i} = cell2mat(cancelTimeHard2Std{i}(iUnitHardInd)) - cancelData.ssrt(iUnitHardInd);
-
+        
         scatter(ax(1, hardPlot), cell2mat(ssdHard{i}), cell2mat(cancelTimeHard2Std{i}))
     end
     
     
     
-%    hard6Std = cellfun(@(x) ~isnan(x), cancelData.cancelTime6Std, 'uni', false);
-%    cancelTimeEasy6Std{i} = 
-
-
-
+    %    hard6Std = cellfun(@(x) ~isnan(x), cancelData.cancelTime6Std, 'uni', false);
+    %    cancelTimeEasy6Std{i} =
+    
+    
+    
 end
 
 
@@ -131,7 +131,7 @@ rampNoClassic = ramp(iRmp, :);
 
 %%
 neuronTypes = classicRamp;
-    neurons = table();
+neurons = table();
 for i = 61 : size(neuronTypes, 1)
     unitInfo = table();
     unitInfo.sessionID  = neuronTypes.sessionID(i);
@@ -148,9 +148,9 @@ for i = 61 : size(neuronTypes, 1)
     
     pdfName = [neuronTypes.sessionID{i},'_ccm_',neuronTypes.unit{i},'_neuron_collapse.pdf'];
     if exist(fullfile(local_figure_path,subject,'sessionCollapseChoice',pdfName))
-      open(fullfile(local_figure_path,subject,'sessionCollapseChoice',pdfName))
+        open(fullfile(local_figure_path,subject,'sessionCollapseChoice',pdfName))
     else
-      iData = ccm_session_data(subject, neuronTypes.sessionID{i}, opt);
+        iData = ccm_session_data(subject, neuronTypes.sessionID{i}, opt);
     end
     
     
@@ -181,15 +181,15 @@ iUnit               = {'bp228n02', 'spikeUnit1'};
 iData               = ccm_session_data(subject, iUnit, opt);
 %%
 iCat              	= ccm_classify_neuron(iData);
-    
+
 
 %%
 psWin = [-149:-99];
 psRate = nansum(Data.responseOnset.colorCoh(sigInd).goTarg.raster(:,postsaccAlign + psWin), 2)  .* 1000 ./ length(psWin)
-    
-   %%
-   
-   categoryList = {'presaccNoCancel'};
+
+%%
+
+categoryList = {'presaccNoCancel'};
 opt = ccm_population_neuron_plot;
 
 opt.doStops = true;
@@ -197,7 +197,7 @@ opt.easyOnly = false;
 opt.multiUnit = multiUnit;
 opt.normalize = true;
 opt.categoryName = categoryList{1};
-    ccm_population_neuron_plot(subject,projectRoot,projectDate,opt)
+ccm_population_neuron_plot(subject,projectRoot,projectDate,opt)
 
 %%
 
@@ -300,4 +300,95 @@ end
 sum(nTrial)
 mean(nTrial)
 sum(nAbort)/sum(nTrial)
+
+
+
+
+%%
+
+subject = 'broca';
+sessionRemove = ccm_exclude_sessions(subject);
+
+saccadeBaseRatio = [];
+saccadeBaseRatio = 2;
+
+category = 'presacc_cancel_meanDifference';
+% category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
+% category = 'presacc_cancel_trialByTrial';
+% category = 'presacc_ddmRankMeanStim_cancel_trialByTrial';
+
+
+projectDate = '2017-01-11';
+projectRoot = '~/perceptualchoice_stop_spikes_population';
+
+addpath(genpath(fullfile(projectRoot,'src/code',projectDate)));
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+
+% load the population of cancel time anlysis
+fileName = fullfile(dataPath, 'go_vs_canceled', ssrtUse, ['ccm_canceled_vs_go_neuronTypes', addMulti]);
+load(fileName)
+
+
+fileName = fullfile(dataPath, ['ccm_',category,'_neurons', addMulti]);
+load(fileName);
+
+neurons = neurons(~ismember(neurons.sessionID, sessionRemove),:);
+if ~isempty(saccadeBaseRatio)
+    load(fullfile(dataPath, ['ccm_neuronTypes', addMulti]));
+    includeInd = neuronTypes.saccadeBaseRatio >= saccadeBaseRatio;
+    keepUnit = neuronTypes(includeInd, 1:4);
+    neurons = intersect(keepUnit, neurons);
+end
+
+
+cancelData = table();
+for j = 1 : size(neurons, 1)
     
+    % find the indices in cancelTypes that correspond to this unit
+    iInd = strcmp(neurons.sessionID(j), cancelTypes.sessionID) & strcmp(neurons.unit(j), cancelTypes.unit);
+    
+    % Only use conditions with at least 20 trials
+    if sum(cancelTypes.nStopStop{iInd} >= 20)
+        cancelData = [cancelData; cancelTypes(iInd,:)];
+    end
+end
+
+size(cancelData)
+%% Use only conditions with 20+ trials
+over20Ind = cell2mat(cellfun(@(x) x >= 20, cancelData.nStopStop, 'uni', false));
+
+
+%% Old Cancel Time
+cancelData.cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
+cancelTime = cell2mat(cancelData.cancelTime);
+
+%% New Cancel Time
+
+
+% A neuron "cancels" if one of its condition's mean cancel time is within latestTime
+cancelTimeDistMean = cell(size(cancelData, 1), 1);
+for j = 1 : size(cancelData, 1)
+    cancelTimeDistMean{j} = cellfun(@nanmean, cancelData.cancelTimeDist{j});
+end
+cancelData.cancelTimeDistMean = cancelTimeDistMean;
+
+cancelTime = cell2mat(cancelData.cancelTimeDistMean);
+
+%% Take a weighted mean of cancel times
+nStopStop = cell2mat(cancelData.nStopStop);
+
+nanCancel = isnan(cancelTime);
+nStopStop = nStopStop(~nanCancel);
+cancelTime = cancelTime(~nanCancel);
+over20Ind = over20Ind(~nanCancel);
+
+nStopStopTotal = sum(nStopStop(over20Ind));
+
+
+cancelTimeWeightedMean = sum(cancelTime(over20Ind) .* (nStopStop(over20Ind) / nStopStopTotal))
+
+%% 
+
+
+

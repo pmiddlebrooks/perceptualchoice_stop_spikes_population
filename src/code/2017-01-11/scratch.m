@@ -312,10 +312,12 @@ sessionRemove = ccm_exclude_sessions(subject);
 saccadeBaseRatio = [];
 saccadeBaseRatio = 2;
 
-category = 'presacc_cancel_meanDifference';
+% category = 'presacc_cancel_meanDifference';
 % category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
 % category = 'presacc_cancel_trialByTrial';
 % category = 'presacc_ddmRankMeanStim_cancel_trialByTrial';
+category = 'presacc_cancel_meanSdf';
+category = 'presacc_ddmRankMeanStim_cancel_meanSdf';
 
 
 projectDate = '2017-01-11';
@@ -355,7 +357,7 @@ for j = 1 : size(neurons, 1)
 end
 
 size(cancelData)
-%% Use only conditions with 20+ trials
+%% 20+ trials. Use only conditions with 20+ trials
 over20Ind = cell2mat(cellfun(@(x) x >= 20, cancelData.nStopStop, 'uni', false));
 
 
@@ -363,7 +365,7 @@ over20Ind = cell2mat(cellfun(@(x) x >= 20, cancelData.nStopStop, 'uni', false));
 cancelData.cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
 cancelTime = cell2mat(cancelData.cancelTime);
 
-%% New Cancel Time
+%% Trial by Trial sdf deflection Cancel Time
 
 
 % A neuron "cancels" if one of its condition's mean cancel time is within latestTime
@@ -375,18 +377,24 @@ cancelData.cancelTimeDistMean = cancelTimeDistMean;
 
 cancelTime = cell2mat(cancelData.cancelTimeDistMean);
 
+%% Mean Sdf deflection cancel time
+cancelTime = cell2mat(cancelData.cancelTimeSdf);
+
+
 %% Take a weighted mean of cancel times
 nStopStop = cell2mat(cancelData.nStopStop);
 
 nanCancel = isnan(cancelTime);
 nStopStop = nStopStop(~nanCancel);
 cancelTime = cancelTime(~nanCancel);
+
+%% 20+ trials 
 over20Ind = over20Ind(~nanCancel);
-
 nStopStopTotal = sum(nStopStop(over20Ind));
-
-
 cancelTimeWeightedMean = sum(cancelTime(over20Ind) .* (nStopStop(over20Ind) / nStopStopTotal))
+
+%% 10+ trials
+cancelTimeWeightedMean = sum(cancelTime .* (nStopStop / nStopStopTotal))
 
 %% 
 

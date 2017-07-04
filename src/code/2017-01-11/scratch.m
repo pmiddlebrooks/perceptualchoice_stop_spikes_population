@@ -303,21 +303,27 @@ sum(nAbort)/sum(nTrial)
 
 
 
-
 %%
+subject = 'joule';
+% subject = 'broca';
 
-subject = 'broca';
 sessionRemove = ccm_exclude_sessions(subject);
 
 saccadeBaseRatio = [];
 saccadeBaseRatio = 2;
 
-% category = 'presacc_cancel_meanDifference';
-% category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
+category = 'presacc_cancel_meanDifference';
+category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
 % category = 'presacc_cancel_trialByTrial';
 % category = 'presacc_ddmRankMeanStim_cancel_trialByTrial';
-category = 'presacc_cancel_meanSdf';
-category = 'presacc_ddmRankMeanStim_cancel_meanSdf';
+% category = 'presacc_cancel_meanSdf';
+% category = 'presacc_ddmRankMeanStim_cancel_meanSdf';
+
+nTrialCriteria = 10;
+% nTrialCriteria = 20;
+% nTrialCriteria = 1020;
+
+
 
 
 projectDate = '2017-01-11';
@@ -349,54 +355,55 @@ for j = 1 : size(neurons, 1)
     
     % find the indices in cancelTypes that correspond to this unit
     iInd = strcmp(neurons.sessionID(j), cancelTypes.sessionID) & strcmp(neurons.unit(j), cancelTypes.unit);
-    
-    % Only use conditions with at least 20 trials
-    if sum(cancelTypes.nStopStop{iInd} >= 20)
+
+    if nTrialCriteria == 10
         cancelData = [cancelData; cancelTypes(iInd,:)];
+    elseif nTrialCriteria == 20
+        % Only use units that have conditions with at least 20 trials
+        if sum(cancelTypes.nStopStop{iInd} >= 20)
+            cancelData = [cancelData; cancelTypes(iInd,:)];
+        end
+    elseif nTrialCriteria == 1020
+        if sum(cancelTypes.nStopStop{iInd} >= 20)
+            j20Ind = cancelTypes.nStopStop{iInd} >= 20;
+            for k = 4 : size(cancelTypes, 2)
+                %             cancelTypes{iInd,k}
+                % k
+                %             cancelTypes{iInd,k}{:}(:) = cancelTypes{iInd,k}{:}(j20Ind);
+                cancelTypes{iInd,k}{:}(~j20Ind) = [];
+            end
+        end
+            cancelData = [cancelData; cancelTypes(iInd,:)];
     end
+    
 end
 
-size(cancelData)
-%% 20+ trials. Use only conditions with 20+ trials
-over20Ind = cell2mat(cellfun(@(x) x >= 20, cancelData.nStopStop, 'uni', false));
-
-
-%% Old Cancel Time
-cancelData.cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
-cancelTime = cell2mat(cancelData.cancelTime);
-
-%% Trial by Trial sdf deflection Cancel Time
-
-
-% A neuron "cancels" if one of its condition's mean cancel time is within latestTime
-cancelTimeDistMean = cell(size(cancelData, 1), 1);
-for j = 1 : size(cancelData, 1)
-    cancelTimeDistMean{j} = cellfun(@nanmean, cancelData.cancelTimeDist{j});
+%%
+dataTable = table();
+sessionID = [];
+unit = [];
+for i = 1 : size(cancelData, 1)
+    sessionID = [sessionID; repmat(cancelData.sessionID(i), length(cancelData.nStopStop{i}), 1)];
+    unit = [unit; repmat(cancelData.unit(i), length(cancelData.nStopStop{i}), 1)];
 end
-cancelData.cancelTimeDistMean = cancelTimeDistMean;
-
-cancelTime = cell2mat(cancelData.cancelTimeDistMean);
-
-%% Mean Sdf deflection cancel time
-cancelTime = cell2mat(cancelData.cancelTimeSdf);
+cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
 
 
-%% Take a weighted mean of cancel times
-nStopStop = cell2mat(cancelData.nStopStop);
+dataTable.sessionID = sessionID;
+dataTable.unit = unit;
+dataTable.ssrt = cell2mat(cancelData.stopStopSsrt);
+dataTable.coherence = cell2mat(cancelData.stopStopCoh);
+dataTable.ssd = cell2mat(cancelData.stopStopSsd);
+dataTable.nStop = cell2mat(cancelData.nStopStop);
+dataTable.pValue40ms = cell2mat(cancelData.pValue40msStopStop);
+dataTable.cancelTime = cell2mat(cancelTime);
 
-nanCancel = isnan(cancelTime);
-nStopStop = nStopStop(~nanCancel);
-cancelTime = cancelTime(~nanCancel);
+writetable(dataTable, fullfile(dataPath,'go_vs_canceled',[category,'_cancel_data.csv']))
 
-%% 20+ trials 
-over20Ind = over20Ind(~nanCancel);
-nStopStopTotal = sum(nStopStop(over20Ind));
-cancelTimeWeightedMean = sum(cancelTime(over20Ind) .* (nStopStop(over20Ind) / nStopStopTotal))
+data = table();
+[C,ia,ic] = unique(dataTable.sessionID);
+data.sessionID = C;
+data.ssrt = dataTable.ssrt(ia);
 
-%% 10+ trials
-cancelTimeWeightedMean = sum(cancelTime .* (nStopStop / nStopStopTotal))
-
-%% 
-
-
+writetable(data, fullfile(dataPath,'go_vs_canceled',['ssrt_',category,'_cancel_data.csv']))
 

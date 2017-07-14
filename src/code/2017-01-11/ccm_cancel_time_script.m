@@ -1,7 +1,28 @@
 %%
 
 subject = 'joule';
-% subject = 'joule';
+% subject = 'broca';
+
+
+multiUnit = true;
+deleteUnmodulated = true;
+deleteSessions = true;
+normalizeData = false;
+append = false;
+ssrtUse = 'intWeightPerSession';
+
+if multiUnit
+    addMulti = '_multiUnit';
+else
+    addMulti = [];
+end
+if normalizeData
+    addNorm = '_normalized';
+else
+    addNorm = [];
+end
+
+
 
 sessionRemove = ccm_exclude_sessions(subject);
 
@@ -16,8 +37,8 @@ category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
 % category = 'presacc_ddmRankMeanStim_cancel_meanSdf';
 
 nTrialCriteria = 10;
-nTrialCriteria = 20;
-nTrialCriteria = 1020;
+% nTrialCriteria = 20;
+% nTrialCriteria = 1020;
 
 
 
@@ -51,7 +72,7 @@ for j = 1 : size(neurons, 1)
     
     % find the indices in cancelTypes that correspond to this unit
     iInd = strcmp(neurons.sessionID(j), cancelTypes.sessionID) & strcmp(neurons.unit(j), cancelTypes.unit);
-    find(iInd)
+%     find(iInd)
     if nTrialCriteria == 10
         cancelData = [cancelData; cancelTypes(iInd,:)];
     elseif nTrialCriteria == 20
@@ -84,12 +105,15 @@ size(cancelData)
 % end
 
 %% Old Cancel Time
-cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
+% cancelTime = cellfun(@(x,y,z) x - y - z, cancelData.cancelTime2Std, cancelData.stopStopSsd, cancelData.stopStopSsrt, 'uni', false);
 
 % Grand average cancel time
 % ssrtGrandAvg = mean(cell2mat(cancelData.stopStopSsrt));
 % cancelTime = cellfun(@(x,y) x - y - ssrtGrandAvg, cancelData.cancelTime2Std, cancelData.stopStopSsd, 'uni', false);
 % 
+
+cancelTime = cellfun(@(x,y) x - y - 82, cancelData.cancelTime2Std, cancelData.stopStopSsd, 'uni', false);
+
 cancelData.cancelTime = cancelTime;
 %% Keep only the conditions that cancel?
 cancelLogical = cellfun(@(in1) in1 <= 20, cancelData.cancelTime, 'uni', false);
@@ -123,6 +147,11 @@ cancelTime = cancelData.cancelTime;
 % nStopStop = nStopStop(~nanCancel);
 % cancelTime = cancelTime(~nanCancel);
 
+%% Mean of cancel times
+cancelTimeMean = nanmean(cell2mat(cancelTime))
+
+
+
 %% Weighted mean
 weightCancelTime = cell2mat(cancelTime);
 nStopStop = cell2mat(cancelData.nStopStop);
@@ -136,11 +165,6 @@ cancelTimeWeightedMean = sum(weightCancelTime .* (nStopStop / sum(nStopStop)))
 %     nStopStopTotal = sum(nStopStop(over20Ind));
 %     cancelTimeWeightedMean = sum(cancelTime(over20Ind) .* (nStopStop(over20Ind) / nStopStopTotal))
 % end
-
-%% Mean of cancel times
-cancelTimeMean = nanmean(cell2mat(cancelTime))
-
-
 
 %% 40 ms ratio around SSRT
 
@@ -197,4 +221,51 @@ aboveCritRatio = cell2mat(cellfun(@(in1, in2) in1(~in2), ratioAroundSsrt, pValue
 mean(aboveCritRatio)
 [h,p,ci,stats] = ttest(aboveCritRatio-1)
 
+
+
+
+
+
+
+
+
+
+%% Cancel time using peri-SSD as baseline
+preBase = 20;
+postBase = 40;
+cancelTimeNewBase = cell(size(cancelData, 1));
+for i = 1 : size(cancelData, 1)
+    nCond = length(cancelData.stopStopSsrt(i));
+    iCancelTime = nan(nCond, 1);
+    
+    for j = 1 : nCond
+        jCoh = cancelData.stopStopCoh{i}(j);
+        jSsd = cancelData.stopStopSsd{i}(j);
+        
+        jSdfDiff = cancelData.goTargSlowSpike{i}(j,:) - cancelData.stopStopSpike{i}(j,:);
+        j2Std = 2*std(jSsd-preBase:jSsd+postBase);
+        
+                % are there times at which the difference between sdfs is
+                % greater than 2 standard deviations of the difference 500
+                % ms before checkerboard onset? Check from checkerboard onset
+                % to end of the checkerboard epoch.
+                % So std2Ind starts at checkerboard onset.
+                std2Ind = jSdfDiff > j2Std;
+                
+                
+        
+    end
+end
+
+dataTable.sessionID = sessionID;
+dataTable.unit = unit;
+dataTable.ssrt = cell2mat(cancelData.stopStopSsrt);
+dataTable.coherence = cell2mat(cancelData.stopStopCoh);
+dataTable.ssd = cell2mat(cancelData.stopStopSsd);
+dataTable.nStop = cell2mat(cancelData.nStopStop);
+dataTable.pValue40ms = cell2mat(cancelData.pValue40msStopStop);
+dataTable.cancelTime = cell2mat(cancelTime);
+
+
+writetable(dataTable, fullfile(dataPath,'go_vs_canceled',['ssrt_',category,'_cancel_data.csv']))
 

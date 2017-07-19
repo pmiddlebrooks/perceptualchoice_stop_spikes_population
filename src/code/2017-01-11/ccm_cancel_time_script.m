@@ -1,7 +1,7 @@
 %%
 
 subject = 'joule';
-% subject = 'broca';
+subject = 'broca';
 
 
 multiUnit = true;
@@ -30,7 +30,7 @@ saccadeBaseRatio = [];
 saccadeBaseRatio = 2;
 
 category = 'presacc_cancel_meanDifference';
-category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
+% category = 'presacc_ddmRankMeanStim_cancel_meanDifference';
 % category = 'presacc_cancel_trialByTrial';
 % category = 'presacc_ddmRankMeanStim_cancel_trialByTrial';
 % category = 'presacc_cancel_meanSdf';
@@ -231,41 +231,95 @@ mean(aboveCritRatio)
 
 
 %% Cancel time using peri-SSD as baseline
-preBase = 20;
-postBase = 40;
-cancelTimeNewBase = cell(size(cancelData, 1));
-for i = 1 : size(cancelData, 1)
-    nCond = length(cancelData.stopStopSsrt(i));
+
+% Make cancelData table more convenient by reassigning it to "c".
+c = cancelData;
+
+% Constants
+% -------------------
+
+ms2Std = 30;
+window = 0 : 999; % define an epoch of analysis
+preBase = 20; % ms before SSD to begin baseline epoch
+postBase = 40; % ms after SSD to end baseline epoch
+
+% Initialize cancelTime to add to c table
+cancelTimeNewBase = cell(size(c, 1));
+
+% Loop through each row (unit) of c table
+for i = 1 : size(c, 1)
+    nCond = length(c.stopStopSsrt(i));
     iCancelTime = nan(nCond, 1);
     
+    % Loop through each valid condition of each unit
     for j = 1 : nCond
-        jCoh = cancelData.stopStopCoh{i}(j);
-        jSsd = cancelData.stopStopSsd{i}(j);
+        jCoh = c.stopStopCoh{i}(j);
+        jSsd = c.stopStopSsd{i}(j);
         
-        jSdfDiff = cancelData.goTargSlowSpike{i}(j,:) - cancelData.stopStopSpike{i}(j,:);
-        j2Std = 2*std(jSsd-preBase:jSsd+postBase);
+        % Get the differential SDF to analyze
+        jSdfDiff = c.goTargSlowSpike{i}(j,c.goTargSlowCheckerAlign{i}(j)+window) - c.stopStopSpike{i}(j,c.stopStopCheckerAlign{i}(j)+window);
+        
+        % Use the baseline epoch to calculate 2 Std of differential SDF
+        j2Std = 2*std(jSdfDiff(jSsd-preBase : jSsd+postBase));
         
                 % are there times at which the difference between sdfs is
-                % greater than 2 standard deviations of the difference 500
-                % ms before checkerboard onset? Check from checkerboard onset
-                % to end of the checkerboard epoch.
-                % So std2Ind starts at checkerboard onset.
-                std2Ind = jSdfDiff > j2Std;
+                % greater than 2 standard deviations of the differential
+                % SDF around the SSD?
+                std2Ind = jSdfDiff(jSsd:end) > j2Std;
+
+                
+                
+                
+                
+                
+                
+                                % Look for a sequence of ms2Std ms for which the go sdf is 2
+                % std greater than the stop sdf.
+                % First whether the differential sdf was > 2*Std for the
+                % first ms2Std ms
+                if sum(std2Ind(1:ms2Std)) == ms2Std
+                    cancelTimeNewBase{i}(j) = c.stopStopSsd{i}(j);
+                else
+                    % If it wasn't, detmerine whether there was a time
+                    % after SSD that the differential
+                    % sdf was > 2*Std for at least ms2Std ms.
+                    riseAbove2Std = find([0; diff(std2Ind)] == 1);
+                    sinkBelow2Std = find([0; diff(std2Ind)] == -1);
+                    if ~isempty(riseAbove2Std)                        
+                        % If there's one more riseAbove2Std than sinkBelow2Std, the last riseAbove2Std
+                        % will last until the end of the sdf: Add to
+                        % singkBelowStd the end of the epoch
+                        if length(riseAbove2Std) > length(sinkBelow2Std)
+                            sinkBelow2Std = [sinkBelow2Std; checkerEpochEnd];
+                        end
+                        
+                        % Now riseAbove2Std length should be equal. See if
+                        % any of the riseAbove2Std streaks go longer than
+                        % 50ms
+                        ind = find(sinkBelow2Std - riseAbove2Std >= ms2Std, 1);
+                        if ~isempty(ind)
+                            cancelTimeNewBase{i}(j) = riseAbove2Std(ind) + stopStopSsd(i);
+                        end
+                     end
+                end
+
+                
+                
                 
                 
         
     end
 end
 
-dataTable.sessionID = sessionID;
-dataTable.unit = unit;
-dataTable.ssrt = cell2mat(cancelData.stopStopSsrt);
-dataTable.coherence = cell2mat(cancelData.stopStopCoh);
-dataTable.ssd = cell2mat(cancelData.stopStopSsd);
-dataTable.nStop = cell2mat(cancelData.nStopStop);
-dataTable.pValue40ms = cell2mat(cancelData.pValue40msStopStop);
-dataTable.cancelTime = cell2mat(cancelTime);
+dataTable.sessionID     = sessionID;
+dataTable.unit          = unit;
+dataTable.ssrt          = cell2mat(c.stopStopSsrt);
+dataTable.coherence     = cell2mat(c.stopStopCoh);
+dataTable.ssd           = cell2mat(c.stopStopSsd);
+dataTable.nStop         = cell2mat(c.nStopStop);
+dataTable.pValue40ms    = cell2mat(c.pValue40msStopStop);
+dataTable.cancelTime    = cell2mat(cancelTime);
 
 
-writetable(dataTable, fullfile(dataPath,'go_vs_canceled',['ssrt_',category,'_cancel_data.csv']))
+% writetable(dataTable, fullfile(dataPath,'go_vs_canceled',['ssrt_',category,'_cancel_data.csv']))
 

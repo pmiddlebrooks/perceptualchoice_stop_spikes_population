@@ -6,6 +6,7 @@ if nargin < 4
     options.plotFlag   = true;
     options.printPlot   = true;
     options.ssrt = 'intWeightPerSession';
+    options.cancelTimeUse = 'cancelTime2Std';
 end
 
 
@@ -31,19 +32,19 @@ for iCat = 1 : length(options.neuronCategory)
     fileName = fullfile(dataPath, ['ccm_',options.neuronCategory{iCat},'_neurons']);
     if options.multiUnit
         fileName = [fileName, '_multiUnit'];
-    end    
+    end
     load(fileName)
     
     % load the population of cancel time anlysis
     canFileName = fullfile(dataPath, 'go_vs_canceled', options.ssrt, ['ccm_canceled_vs_go_neuronTypes']);
     if options.multiUnit
         canFileName = [canFileName, '_multiUnit'];
-    end    
+    end
     load(canFileName)
     
-%     deleteList = ccm_exclude_sessions(subject);
-%     deleteInd = ismember(cancelTypes.sessionID, deleteList);
-%     cancelTypes(deleteInd, :) = [];
+    %     deleteList = ccm_exclude_sessions(subject);
+    %     deleteInd = ismember(cancelTypes.sessionID, deleteList);
+    %     cancelTypes(deleteInd, :) = [];
     
     cancelData = table();
     for i = 1 : size(neurons, 1)
@@ -60,6 +61,9 @@ for iCat = 1 : length(options.neuronCategory)
     ssdArray = unique(cell2mat(cancelData.stopStopSsd));
     ssdEasy = cell(length(ssdArray), 1);
     ssdHard = cell(length(ssdArray), 1);
+    
+    cancelTimeEasy = cell(length(ssdArray), 1);
+    cancelTimeHard = cell(length(ssdArray), 1);
     
     cancelTimeEasy2Std = cell(length(ssdArray), 1);
     cancelTimeHard2Std = cell(length(ssdArray), 1);
@@ -85,30 +89,33 @@ for iCat = 1 : length(options.neuronCategory)
         
         ax(1, easyPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(1, easyPlot) yAxesPosition(1, easyPlot) axisWidth axisHeight]);
         hold(ax(1, easyPlot), 'on')
-        title('2 std neural separation: EASY')
+        title(sprintf('%s: EASY', options.cancelTimeUse))
         set(ax(1, easyPlot), 'ylim', ylim2Std, 'xlim', xlim2Std, 'xticklabel', [])
         cla
+        plot(ax(1, easyPlot), xlim, [0 0], '-k')
         
         ax(1, hardPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(1, hardPlot) yAxesPosition(1, hardPlot) axisWidth axisHeight]);
         hold(ax(1, hardPlot), 'on')
-        title('2 std neural separation: HARD')
+        %         title('2 std neural separation: HARD')
+        title(sprintf('%s: HARD', options.cancelTimeUse))
         set(ax(1, hardPlot), 'ylim', ylim2Std, 'xlim', xlim2Std, 'xticklabel', [])
         cla
+        plot(ax(1, hardPlot), xlim, [0 0], '-k')
         
         
         ax(2, easyPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(2, easyPlot) yAxesPosition(2, easyPlot) axisWidth axisHeight]);
         hold(ax(2, easyPlot), 'on')
-        title('2std - SSRT neural separation: EASY')
-        set(ax(2, easyPlot), 'ylim', ylim2Std, 'xlim', xlim2Std)
-        cla
-        plot(ax(2, easyPlot), xlim, [0 0], '-k')
+        %         title('2std - SSRT neural separation: EASY')
+        %         set(ax(2, easyPlot), 'ylim', ylim2Std, 'xlim', xlim2Std)
+        %         cla
+        %         plot(ax(2, easyPlot), xlim, [0 0], '-k')
         
         ax(2, hardPlot) = axes('units', 'centimeters', 'position', [xAxesPosition(2, hardPlot) yAxesPosition(2, hardPlot) axisWidth axisHeight]);
         hold(ax(2, hardPlot), 'on')
-        title('2std - SSRT neural separation: HARD')
-        set(ax(2, hardPlot), 'ylim', ylim2Std, 'xlim', xlim2Std)
-        cla
-        plot(ax(2, hardPlot), xlim, [0 0], '-k')
+        %         title('2std - SSRT neural separation: HARD')
+        %         set(ax(2, hardPlot), 'ylim', ylim2Std, 'xlim', xlim2Std)
+        %         cla
+        %         plot(ax(2, hardPlot), xlim, [0 0], '-k')
     end
     
     easyInd = cellfun(@(x) x == 1, cancelData.stopStopCond, 'uni', false);
@@ -130,33 +137,35 @@ for iCat = 1 : length(options.neuronCategory)
         
         
         if sum(cell2mat(ssdEasy{i}))
-            cancelTimeEasy2Std{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.cancelTime2Std, easyInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
+            %             cancelTimeEasy{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.(options.cancelTimeUse), easyInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
+            cancelTimeEasy{i} = cellfun(@(x,y,z) x(y & z), cancelData.(options.cancelTimeUse), easyInd, ssdInd, 'uni', false);
             stopStopEasySsrt{i} = cellfun(@(x,y,z) x(y & z), cancelData.stopStopSsrt, easyInd, ssdInd, 'uni', false);
-            iUnitEasyInd = cellfun(@(x) ~isempty(x), cancelTimeEasy2Std{i});
-            cancelTimeEasySsrt{i} = cell2mat(cancelTimeEasy2Std{i}(iUnitEasyInd)) - cell2mat(stopStopEasySsrt{i}(iUnitEasyInd));
+            iUnitEasyInd = cellfun(@(x) ~isempty(x), cancelTimeEasy{i});
+            %             cancelTimeEasySsrt{i} = cell2mat(cancelTimeEasy{i}(iUnitEasyInd)) - cell2mat(stopStopEasySsrt{i}(iUnitEasyInd));
             
             if options.plotFlag
                 % 2Std Per neuron per SSD plots
-                scatter(ax(1, easyPlot), cell2mat(ssdEasy{i}), cell2mat(cancelTimeEasy2Std{i}), markSizeInd, markColorInd)
+                scatter(ax(1, easyPlot), cell2mat(ssdEasy{i}), cell2mat(cancelTimeEasy{i}), markSizeInd, markColorInd)
                 
                 % cancel-SSRT Per neuron per SSD plots
-                scatter(ax(2, easyPlot), cell2mat(ssdEasy{i}(iUnitEasyInd)), cancelTimeEasySsrt{i}, markSizeInd, markColorInd)
+                %                 scatter(ax(2, easyPlot), cell2mat(ssdEasy{i}(iUnitEasyInd)), cancelTimeEasySsrt{i}, markSizeInd, markColorInd)
             end
         end
         
         
         if sum(cell2mat(ssdHard{i}))
-            cancelTimeHard2Std{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.cancelTime2Std, hardInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
+            %             cancelTimeHard{i} = cellfun(@(x,y,z,k) x(y & z) - k(y & z), cancelData.(options.cancelTimeUse), hardInd, ssdInd, cancelData.stopStopSsd, 'uni', false);
+            cancelTimeHard{i} = cellfun(@(x,y,z) x(y & z), cancelData.(options.cancelTimeUse), hardInd, ssdInd, 'uni', false);
             stopStopHardSsrt{i} = cellfun(@(x,y,z) x(y & z), cancelData.stopStopSsrt, hardInd, ssdInd, 'uni', false);
-            iUnitHardInd = cellfun(@(x) ~isempty(x), cancelTimeHard2Std{i});
-            cancelTimeHardSsrt{i} = cell2mat(cancelTimeHard2Std{i}(iUnitHardInd)) - cell2mat(stopStopHardSsrt{i}(iUnitHardInd));
-                       
+            iUnitHardInd = cellfun(@(x) ~isempty(x), cancelTimeHard{i});
+            %             cancelTimeHardSsrt{i} = cell2mat(cancelTimeHard{i}(iUnitHardInd)) - cell2mat(stopStopHardSsrt{i}(iUnitHardInd));
+            
             if options.plotFlag
                 % 2Std Per neuron per SSD plots
-                scatter(ax(1, hardPlot), cell2mat(ssdHard{i}), cell2mat(cancelTimeHard2Std{i}), markSizeInd, markColorInd)
+                scatter(ax(1, hardPlot), cell2mat(ssdHard{i}), cell2mat(cancelTimeHard{i}), markSizeInd, markColorInd)
                 
                 % cancel-SSRT Per neuron per SSD plots
-                scatter(ax(2, hardPlot), cell2mat(ssdHard{i}(iUnitHardInd)), cancelTimeHardSsrt{i}, markSizeInd, markColorInd)
+                %                 scatter(ax(2, hardPlot), cell2mat(ssdHard{i}(iUnitHardInd)), cancelTimeHardSsrt{i}, markSizeInd, markColorInd)
             end
             
         end
@@ -164,26 +173,32 @@ for iCat = 1 : length(options.neuronCategory)
         
     end
     
+    cancelTimeEasyDist = cell2mat(cellfun(@(x,y) x(y), cancelData.(options.cancelTimeUse), easyInd, 'uni', false));
+    cancelTimeHardDist = cell2mat(cellfun(@(x,y) x(y), cancelData.(options.cancelTimeUse), hardInd, 'uni', false));
+    histogram(ax(2, easyPlot), cancelTimeEasyDist)
+    histogram(ax(2, hardPlot), cancelTimeHardDist)
     
-  
+    
+    
+    
     
     if options.plotFlag
         for i = 1 :length(ssdArray)
             
             if sum(cell2mat(ssdEasy{i}))
                 % Per SSD averages
-                scatter(ax(1, easyPlot), mean(cell2mat(ssdEasy{i})), nanmean(cell2mat(cancelTimeEasy2Std{i})), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
+                scatter(ax(1, easyPlot), mean(cell2mat(ssdEasy{i})), nanmean(cell2mat(cancelTimeEasy{i})), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
                 
                 % cancel-SSRT Per neuron per SSD plots
-                scatter(ax(2, easyPlot), mean(cell2mat(ssdEasy{i})), nanmean(cancelTimeEasySsrt{i}), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
+                %                 scatter(ax(2, easyPlot), mean(cell2mat(ssdEasy{i})), nanmean(cancelTimeEasySsrt{i}), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
             end
             if sum(cell2mat(ssdHard{i}))
                 
                 % Per SSD averages
-                scatter(ax(1, hardPlot), mean(cell2mat(ssdHard{i})), nanmean(cell2mat(cancelTimeHard2Std{i})), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
+                scatter(ax(1, hardPlot), mean(cell2mat(ssdHard{i})), nanmean(cell2mat(cancelTimeHard{i})), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
                 
                 % cancel-SSRT Per neuron per SSD plots
-                scatter(ax(2, hardPlot), mean(cell2mat(ssdHard{i})), nanmean(cancelTimeHardSsrt{i}), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
+                %                 scatter(ax(2, hardPlot), mean(cell2mat(ssdHard{i})), nanmean(cancelTimeHardSsrt{i}), markSizePop, 'markerFaceColor', markColorPop, 'markerEdgeColor', 'k')
             end
         end
         
@@ -194,9 +209,9 @@ for iCat = 1 : length(options.neuronCategory)
         
         if options.printPlot
             sFileName = fullfile(projectRoot,'results',projectDate,subject,['Cancel_times_population_',options.neuronCategory{iCat}]);
-    if options.multiUnit
-        sFileName = [sFileName, '_multiUnit'];
-    end    
+            if options.multiUnit
+                sFileName = [sFileName, '_multiUnit'];
+            end
             print(figureHandle, sFileName, '-dpdf', '-r300')
         end
         
@@ -205,8 +220,10 @@ end
 
 data.ssdEasy            = ssdEasy;
 data.ssdHard            = ssdHard;
+data.cancelTimeEasy = cancelTimeEasy;
+data.cancelTimeHard = cancelTimeHard;
 data.cancelTimeEasy2Std = cancelTimeEasy2Std;
 data.cancelTimeHard2Std = cancelTimeHard2Std;
 data.cancelTimeEasySsrt = cancelTimeEasySsrt;
 data.cancelTimeHardSsrt = cancelTimeHardSsrt;
-data.cancelData         = cancelData; 
+data.cancelData         = cancelData;

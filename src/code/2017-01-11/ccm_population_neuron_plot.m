@@ -56,6 +56,8 @@ switch opt.dataType
         if opt.normalize
             yLimMax = 2.75;
             yLimMin = .75;
+            yLimMax = 100;
+            yLimMin = -10;
         else
             yLimMax = 140;
             yLimMin = 10;
@@ -113,9 +115,9 @@ end
 % ____________________    LOAD DATA    ____________________
 dataPath = fullfile(projectRoot,'data',projectDate,subject);
 
-
+% Load Data struct for all neurons population
 % Data = load(fullfile(dataPath, ['ccm_all_neuron_population',addMulti,addNorm])); % Load Data struct for that population
-Data = load(fullfile(dataPath, ['ccm_all_neuron_population',addMulti])); % Load Data struct for that population
+Data = load(fullfile(dataPath, ['ccm_all_neuron_population',addMulti])); 
 switch subject
     case 'broca';
         baseNorm = 48.7;
@@ -124,7 +126,7 @@ switch subject
 end
 
 
-% load the population of cancel time anlysis
+% load the population of cancel time anlysis (cancelTypes table)
 if ~opt.doGos
     if opt.doCanceled
         fileName = fullfile(dataPath, 'go_vs_canceled', opt.ssrtUse, ['ccm_canceled_vs_go_neuronTypes', addMulti]);
@@ -227,26 +229,37 @@ end
 
 % Loop through neuron categories
 for n = 1 : length(opt.categoryName)
-    load(fullfile(dataPath, ['ccm_',opt.categoryName{n},'_neurons',addMulti])) % Load Data struct for that population
+    
+    
+    % Filter the data based on various criteria:
+%     =========================
+    
+    % Load the list of units for the given category ("neurons" table)
+    load(fullfile(dataPath, ['ccm_',opt.categoryName{n},'_neurons',addMulti])) 
     if opt.excludeSessions
         sessionRemove = ccm_exclude_sessions(subject);
         neurons = neurons(~ismember(neurons.sessionID, sessionRemove),:);
-        unitsRemove = readtable(fullfile(dataPath, ['ccm_exclude_',lower(subject),'.csv']));
-        neurons = neurons(~ismember(neurons.sessionID, unitsRemove.sessionID) & ~ismember(neurons.unit, unitsRemove.unit),:);
+%         unitsRemove = readtable(fullfile(dataPath, ['ccm_exclude_',lower(subject),'.csv']));
+%         neurons = neurons(~ismember(neurons.sessionID, unitsRemove.sessionID) & ~ismember(neurons.unit, unitsRemove.unit),:);
     end
+    
     if ~isempty(opt.saccadeBaseRatio)
+        % Load the table that lists all neurons based on categorization and
+        % the saccadeBaseRatio
         load(fullfile(dataPath, ['ccm_neuronTypes', addMulti]));
         includeInd = neuronTypes.saccadeBaseRatio >= opt.saccadeBaseRatio;
         keepUnit = neuronTypes(includeInd, 1:4);
         neurons = intersect(keepUnit, neurons);
     end
-    
-    
+
+    %     =========================
+
+     unique(neurons.sessionID)
     
     
     
     % Loop through epochs
-    for e = 1 : length(opt.epochArray)
+        for e = 1 : length(opt.epochArray)
         epochRange = ccm_epoch_range(opt.epochArray{e}, 'plot');
         
         % Loop colorherence (easyIn, easyOut, hardIn, hardOut)
@@ -404,15 +417,17 @@ for n = 1 : length(opt.categoryName)
                 
                 if opt.normalize && e == 1
                     meanStopStopNorm = mean(meanStopStopSdf(Data.(opt.epochArray{e}).alignStop - 50 : Data.(opt.epochArray{e}).alignStop));
+                    stdStopStopNorm = std(meanStopStopSdf(Data.(opt.epochArray{e}).alignStop - 50 : Data.(opt.epochArray{e}).alignStop));
                     if ~strcmp(opt.epochArray{e}, 'stopSignalOn')
                         meanGoSlowNorm = mean(meanGoSlowSdf(Data.(opt.epochArray{e}).alignStop - 50 : Data.(opt.epochArray{e}).alignStop));
+                        stdGoSlowNorm = std(meanGoSlowSdf(Data.(opt.epochArray{e}).alignStop - 50 : Data.(opt.epochArray{e}).alignStop));
                     end
                 end
                 
                 if opt.normalize
-                    meanStopStopSdf = meanStopStopSdf / meanStopStopNorm;
+                    meanStopStopSdf = (meanStopStopSdf - meanStopStopNorm) / stdStopStopNorm;
                     if ~strcmp(opt.epochArray{e}, 'stopSignalOn')
-                        meanGoSlowSdf = meanGoSlowSdf / meanGoSlowNorm;
+                        meanGoSlowSdf = (meanGoSlowSdf - meanGoSlowNorm) / stdGoSlowNorm;
                     end
                 end
                 %             if strcmp(opt.epochArray{e}, 'checkerOn')
@@ -556,7 +571,7 @@ for n = 1 : length(opt.categoryName)
         end % colorCohArray
         
     end % epochs
-    pause
+
     
 end % categories
 h=axes('Position', [0 0 1 1], 'Visible', 'Off');

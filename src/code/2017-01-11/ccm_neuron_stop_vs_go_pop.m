@@ -6,7 +6,7 @@ function ccm_neuron_stop_vs_go_pop(subject,projectRoot,projectDate, options)
 %
 %
 
-ANALYZE_CANCELED = options.ANALYZE_CANCELED;
+ANALYZE_CANCELED    = options.ANALYZE_CANCELED;
 ANALYZE_NONCANCELED = options.ANALYZE_NONCANCELED;
 
 
@@ -45,7 +45,7 @@ if options.append
     % %     disp(cancelGoNeuronData(end-10:end,:))
     %     fprintf('\nAppending starting on next session\n')
 else
-    cancelTypes = cell(length(sessionID), 20);
+    cancelTypes = cell(length(sessionID), 25);
     noncancelTypes =  cell(length(sessionID), 9);
     %     cancelTypes = cell(testLength, 12);
     %     noncancelTypes =  cell(testLength, 9);
@@ -54,6 +54,8 @@ end
 tic
 poolID = parpool(options.parpoolSize);
 parfor i = startInd : length(sessionID)
+% for i = startInd : 2
+
 % sessionID = {'bp229n02-mm','bp239n02'};
 % unit = {'spikeUnit25','spikeUnit25'};
 %     for i = startInd : length(sessionID)
@@ -83,12 +85,17 @@ parfor i = startInd : length(sessionID)
             iData.cancelTimeDist, ...
             iData.cancelTime2Std, ...
             iData.cancelTime4Std, ...
-            iData.cancelTime6Std};
+            iData.cancelTime6Std, ...
+            iData.pValuePostSsrtRt, ...
+            iData.pValuePostSsrt100, ...
+            iData.goTargSlowCheckerEventLat, ...
+            iData.targToStopDiffSD, ...
+            iData.preSaccDiffSD};
         
         cancelTypes(i,:) = iCCell;
     end
     
-    
+   
     
     if ANALYZE_NONCANCELED
         
@@ -133,9 +140,15 @@ if ANALYZE_CANCELED
         'cancelTimeSdf'...
         'cancelTimeDist'...
         'cancelTime2Std'...
+        'cancelTime6Std'...
         'cancelTime4Std'...
-        'cancelTime6Std'});
-    
+        'pValuePostSsrtRt'...
+        'pValuePostSsrt100'...
+        'goTargSlowRt'...
+        'targToStopDiffSD'...
+        'preSaccDiffSD'});
+%     assignin('base','cancelTypes', cancelTypes)
+% return
     if ~isdir(fullfile(dataPath, 'go_vs_canceled', options.ssrt))
         mkdir(fullfile(dataPath, 'go_vs_canceled', options.ssrt))
     end

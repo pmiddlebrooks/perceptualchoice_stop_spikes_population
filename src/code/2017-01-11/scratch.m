@@ -407,3 +407,107 @@ data.ssrt = dataTable.ssrt(ia);
 
 writetable(data, fullfile(dataPath,'go_vs_canceled',['ssrt_',category,'_cancel_data.csv']))
 
+%%
+subject = 'joule'
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+% Load the table of ddm/cancel units
+categoryTable = readtable(fullfile(dataPath, [subject,'_ddm_cancel_units.csv']));
+
+% Load the cancel data table
+fileName = fullfile(dataPath, 'go_vs_canceled', ssrtUse, ['ccm_canceled_vs_go_neuronTypes', addMulti]);
+load(fileName)
+
+% Load the choice analyses table
+fileName = fullfile(dataPath, ['ccm_ddmStim_neuronTypes', addMulti]);
+load(fileName)
+
+
+
+%%
+
+sessionID = 'jp054n02';
+unit = 'spikeUnit26';
+
+
+% display the caegory of that unit
+categoryTable(strcmp(categoryTable.sessionID, sessionID) & strcmp(categoryTable.unit, unit),:)
+
+
+% display the cancel data for that unit
+unitIndCancel = strcmp(cancelTypes.sessionID, sessionID) & strcmp(cancelTypes.unit, unit);
+cancelTypes(unitIndCancel,:)
+
+% display the cancel data for that unit
+unitIndChoice = strcmp(neuronTypes.sessionID, sessionID) & strcmp(neuronTypes.unit, unit);
+neuronTypes(unitIndChoice,:)
+
+
+%% HOW MANY TRIALS DID MONKS TIME OUT ON GO TRIALS WAITING FOR A STOP SIGNAL TO OCCUR (TIMEOUT ON FIXATION)
+
+subject = 'joule';
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+% Load the table of ddm/cancel units
+categoryTable = readtable(fullfile(dataPath, [subject,'_ddm_cancel_units.csv']));
+
+sessionList = unique(categoryTable.sessionID);
+goIncorrect = nan(length(sessionList), 1);
+
+for i = 1 : length(sessionList)
+    [trialData, ~] = load_data(subject, sessionList{i});
+    nGoIncorrect = sum(strcmp(trialData.trialOutcome, 'goIncorrect'))
+    goIncorrect(i) = nGoIncorrect;
+end
+goOmissions = table(sessionList, goIncorrect, 'VariableNames', {'session', 'goIncorrect'})
+
+%% HOW does inclusion of GO OMISSIONS affect SSRT over all the relevant sessions?
+
+subject = 'broca';
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+% Load the table of ddm/cancel units
+categoryTable = readtable(fullfile(dataPath, [subject,'_ddm_cancel_units.csv']));
+
+sessionList = unique(categoryTable.sessionID);
+ssrt = nan(length(sessionList), 1);
+
+optInh              = ccm_options;
+optInh.plotFlag     = false;
+
+for i = 1 : length(sessionList)
+dataInh             = ccm_inhibition(subject, sessionList{i}, optInh);
+    ssrt(i) = round(nanmean(dataInh.ssrtIntegrationWeighted));
+end
+% ssrtOld = table(sessionList, ssrt, 'VariableNames', {'session', 'ssrt'})
+ssrtNew = table(sessionList, ssrt, 'VariableNames', {'session', 'ssrt'})
+
+%%
+mean(ssrtOld.ssrt)
+mean(ssrtNew.ssrt)
+ssrtNew.ssrt - ssrtOld.ssrt
+
+%% WHAT'S THE  P(RESPOND) FOR SHORTEST SSD IN EACH SESSION?
+
+subject = 'joule';
+dataPath = fullfile(projectRoot,'data',projectDate,subject);
+
+% Load the table of ddm/cancel units
+categoryTable = readtable(fullfile(dataPath, [subject,'_ddm_cancel_units.csv']));
+
+sessionList = unique(categoryTable.sessionID);
+pRespond = nan(length(sessionList), 1);
+
+optInh              = ccm_options;
+optInh.plotFlag     = false;
+
+for i = 1 : length(sessionList)
+dataInh             = ccm_inhibition(subject, sessionList{i}, optInh);
+    pRespond(i) = dataInh.stopRespondProbGrand(1);
+end
+pRespond
+mean(pRespond)
+
+%%
+data = readtable(fullfile(dataPath, [subject,'_ddm_cancel_data.csv']));
+
